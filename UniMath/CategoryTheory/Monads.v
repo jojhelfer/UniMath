@@ -37,69 +37,93 @@ Ltac pathvia b := (apply (@pathscomp0 _ _ b _ )).
 (** * Definition of monads *)
 Section Monad_def.
 
-Definition functor_with_μ (C : precategory) : UU
-  := ∑ F : functor C C, F □ F ⟹ F.
+Definition Monad_data (C : precategory_ob_mor) : UU :=
+  ∑ F : C -> C, (((∏ a b : ob C, a --> b -> F a --> F b) ×
+                  (∏ a : ob C, F (F a) --> F a)) ×
+                  (∏ a : ob C, a --> F a)).
 
-Coercion functor_from_functor_with_μ (C : precategory) (F : functor_with_μ C)
-  : functor C C := pr1 F.
+Coercion functor_data_from_Monad_data {C : precategory_ob_mor} (T : Monad_data C) : functor_data C C :=
+  mk_functor_data (pr1 T) (pr1 (pr1 (pr2 T))).
 
-Definition μ {C : precategory} (F : functor_with_μ C) : F□F ⟹ F := pr2 F.
+Definition mu {C : precategory} (F : Monad_data C) : (∏ a : ob C, F (F a) --> F a) := (pr2 (pr1 (pr2 F))).
 
-Definition Monad_data (C : precategory) : UU :=
-   ∑ F : functor_with_μ C, functor_identity C ⟹ F.
+Definition eta {C : precategory} (F : Monad_data C) : (∏ a : ob C, a --> F a) := (pr2 (pr2 F)).
 
-Coercion functor_with_μ_from_Monad_data (C : precategory) (F : Monad_data C)
-  : functor_with_μ C := pr1 F.
+Definition is_functorial_Monad_data {C : precategory} (T : Monad_data C) :=
+      ((is_functor T) ×
+       (is_nat_trans (functor_composite_data T T) T (mu T))) ×
+       (is_nat_trans (functor_identity C) T (eta T)).
 
-Definition η {C : precategory} (F : Monad_data C)
-  : functor_identity C ⟹ F := pr2 F.
+Lemma isaprop_is_functoriral_Monad_data {C : precategory} (hs : has_homsets C) (T : Monad_data C) :
+   isaprop (is_functorial_Monad_data T).
+Proof.
+  apply isapropdirprod.
+  apply isapropdirprod.
+  apply isaprop_is_functor; apply hs.
+  apply isaprop_is_nat_trans; apply hs.
+  apply isaprop_is_nat_trans; apply hs.
+Qed.
 
 Definition Monad_laws {C : precategory} (T : Monad_data C) : UU :=
-    (
-      (∏ c : C, η T (T c) · μ T c = identity (T c))
-        ×
-      (∏ c : C, #T (η T c) · μ T c = identity (T c)))
-      ×
-    (∏ c : C, #T (μ T c) · μ T c = μ T (T c) · μ T c).
+  ((∏ c : C, (eta T) (T c) · mu T c = identity (T c)) ×
+   (∏ c : C, #T (eta T c) · mu T c = identity (T c))) ×
+   (∏ c : C, #T (mu T c) · mu T c = mu T (T c) · mu T c).
 
 Lemma isaprop_Monad_laws (C : precategory) (hs : has_homsets C) (T : Monad_data C) :
    isaprop (Monad_laws T).
 Proof.
   repeat apply isapropdirprod;
-  apply impred; intro c; apply hs.
+  apply impred; intro x; apply hs.
 Qed.
 
-Definition Monad (C : precategory) : UU := ∑ T : Monad_data C, Monad_laws T.
+Definition Monad (C : precategory) : UU := ∑ T : Monad_data C, (is_functorial_Monad_data T × Monad_laws T).
 
-Coercion Monad_data_from_Monad (C : precategory) (T : Monad C) : Monad_data C := pr1 T.
+Coercion functor_from_Monad (C : precategory) (T : Monad C) : functor C C := mk_functor _ (pr1 (pr1 (pr1 (pr2 T)))).
+(* Coercion Monad_data_from_Monad (C : precategory) (T : Monad C) : Monad_data C := pr1 T. *)
 
-Lemma Monad_law1 {C : precategory} {T : Monad C} : ∏ c : C, η T (T c) · μ T c = identity (T c).
+Definition μ {C : precategory} (F : Monad C) : F ∙ F ⟹ F := mk_nat_trans _ _ _ (pr2 (pr1 (pr1 (pr2 F)))).
+
+Definition η {C : precategory} (F : Monad C) : functor_identity C ⟹ F := mk_nat_trans _ _ _ (pr2 (pr1 (pr2 F))).
+
+Definition mk_functorial_Monad_data {C : precategory} (F : C ⟶ C) (mu : F ∙ F ⟹ F)
+           (eta : functor_identity C ⟹ F) : Monad_data C :=
+  tpair _ (functor_on_objects F) (dirprodpair (dirprodpair (pr2 (pr1 F)) (pr1 mu)) (pr1 eta)).
+
+Lemma is_functorial_mk_functorial_Monad_data {C : precategory} (F : C ⟶ C) (m : F ∙ F ⟹ F)
+           (e : functor_identity C ⟹ F) : is_functorial_Monad_data (mk_functorial_Monad_data F m e).
 Proof.
-exact (pr1 (pr1 (pr2 T))).
+  apply tpair.
+  apply tpair.
+  apply (pr2 F).
+  apply (pr2 m).
+  apply (pr2 e).
 Qed.
 
-Lemma Monad_law2 {C : precategory} {T : Monad C} : ∏ c : C, #T (η T c) · μ T c = identity (T c).
-Proof.
-exact (pr2 (pr1 (pr2 T))).
-Qed.
+Definition mk_Monad {C : precategory} (F : C ⟶ C) (m : F ∙ F ⟹ F) (e : functor_identity C ⟹ F)
+           (l : Monad_laws (mk_functorial_Monad_data F m e)) :=
+  (_,, dirprodpair (is_functorial_mk_functorial_Monad_data F m e) l).
 
-Lemma Monad_law3 {C : precategory} {T : Monad C} : ∏ c : C, #T (μ T c) · μ T c = μ T (T c) · μ T c.
-Proof.
-exact (pr2 (pr2 T)).
-Qed.
+Definition Monad_law1 {C : precategory} {T : Monad C} : ∏ c : C, η T (T c) · μ T c = identity (T c) :=
+  pr1 (pr1 (pr2 (pr2 T))).
+
+Definition Monad_law2 {C : precategory} {T : Monad C} : ∏ c : C, #T (η T c) · μ T c = identity (T c) :=
+  pr2 (pr1 (pr2 (pr2 T))).
+
+Definition Monad_law3 {C : precategory} {T : Monad C} : ∏ c : C, #T (μ T c) · μ T c = μ T (T c) · μ T c :=
+  pr2 (pr2 (pr2 T)).
 
 End Monad_def.
 
 (** * Monad precategory *)
 Section Monad_precategory.
 
-Definition Monad_Mor_laws {C : precategory} {T T' : Monad_data C} (α : T ⟹ T')
+Definition Monad_Mor_laws {C : precategory} {T T' : Monad C} (α : T ⟹ T')
   : UU :=
   (∏ a : C, μ T a · α a = α (T a) · #T' (α a) · μ T' a) ×
   (∏ a : C, η T a · α a = η T' a).
 
 Lemma isaprop_Monad_Mor_laws (C : precategory) (hs : has_homsets C)
-  (T T' : Monad_data C) (α : T ⟹ T')
+  (T T' : Monad C) (α : T ⟹ T')
   : isaprop (Monad_Mor_laws α).
 Proof.
   apply isapropdirprod;
@@ -108,6 +132,10 @@ Qed.
 
 Definition Monad_Mor {C : precategory} (T T' : Monad C) : UU
   := ∑ α : T ⟹ T', Monad_Mor_laws α.
+
+(* Set Printing All. *)
+(* Check fun (C : precategory) (T T' : Monad C) (α : T ⟹ T') => Monad_Mor_laws α. *)
+(* Check fun (C : precategory) (T T' : Monad C) (α : T ⟹ T') => @Monad_Mor_laws C (pr1 T) (pr1 T') α. *)
 
 Coercion nat_trans_from_monad_mor (C : precategory) (T T' : Monad C) (s : Monad_Mor T T')
   : T ⟹ T' := pr1 s.
@@ -128,7 +156,7 @@ Lemma Monad_identity_laws {C : precategory} (T : Monad C)
   : Monad_Mor_laws (nat_trans_id T).
 Proof.
   split; intros a; simpl.
-  - now rewrite id_left, id_right, functor_id, id_left.
+  - now rewrite id_left, id_right, (functor_id T), id_left.
  - now apply id_right.
 Qed.
 
@@ -144,7 +172,7 @@ Proof.
     rewrite H; clear H; rewrite <- !assoc.
     set (H:=Monad_Mor_μ α' a); simpl in H.
     rewrite H; clear H.
-    rewrite functor_comp.
+    rewrite (functor_comp T).
     apply maponpaths.
     now rewrite !assoc, nat_trans_ax.
   - rewrite assoc.
