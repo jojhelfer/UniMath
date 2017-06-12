@@ -161,19 +161,6 @@ Qed.
 Definition μ_2 : functor_composite (`T) (`T) ⟹ pr1 (`T)
   := fbracket T (identity _ ).
 
-
-Definition functor_with_mu_from_hss : functor_with_μ C.
-Proof.
-  exists (`T).
-  exact μ_2.
-Defined.
-
-Definition Monad_data_from_hss : Monad_data C.
-Proof.
-  exists functor_with_mu_from_hss.
-  exact μ_0.
-Defined.
-
 (** *** Proof of the first monad law *)
 
 Lemma Monad_law_1_from_hss :
@@ -602,14 +589,14 @@ Unset Printing Implicit.
 
 (** Finally putting together all the preparatory results to obtain a monad *)
 
-Lemma Monad_laws_from_hss : Monad_laws Monad_data_from_hss.
+Lemma Monad_laws_from_hss : Monad_laws (mk_functorial_Monad_data `T μ_2 μ_0).
 Proof.
   split.
-  - unfold Monad_data_from_hss; simpl; split.
+  - unfold mk_functorial_Monad_data; simpl; split.
     + apply Monad_law_1_from_hss.
     + apply Monad_law_2_from_hss.
 
-  - unfold Monad_data_from_hss; simpl.
+  - unfold mk_functorial_Monad_data; simpl.
     intro c.
     pathvia (pr1 μ_3 c).
     + set (H1 := μ_3_T_μ_2_μ_2).
@@ -622,8 +609,7 @@ Qed.
 
 Definition Monad_from_hss : Monad C.
 Proof.
-  exists Monad_data_from_hss.
-  exact Monad_laws_from_hss.
+  exact (mk_Monad _ _ _ Monad_laws_from_hss).
 Defined.
 
 End mu_from_fbracket.

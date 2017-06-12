@@ -100,7 +100,7 @@ Proof.
 Qed.
 
 Definition mk_Monad {C : precategory} (F : C ⟶ C) (m : F ∙ F ⟹ F) (e : functor_identity C ⟹ F)
-           (l : Monad_laws (mk_functorial_Monad_data F m e)) :=
+           (l : Monad_laws (mk_functorial_Monad_data F m e)) : Monad C:=
   (_,, dirprodpair (is_functorial_mk_functorial_Monad_data F m e) l).
 
 Definition Monad_law1 {C : precategory} {T : Monad C} : ∏ c : C, η T (T c) · μ T c = identity (T c) :=
@@ -133,10 +133,6 @@ Qed.
 Definition Monad_Mor {C : precategory} (T T' : Monad C) : UU
   := ∑ α : T ⟹ T', Monad_Mor_laws α.
 
-(* Set Printing All. *)
-(* Check fun (C : precategory) (T T' : Monad C) (α : T ⟹ T') => Monad_Mor_laws α. *)
-(* Check fun (C : precategory) (T T' : Monad C) (α : T ⟹ T') => @Monad_Mor_laws C (pr1 T) (pr1 T') α. *)
-
 Coercion nat_trans_from_monad_mor (C : precategory) (T T' : Monad C) (s : Monad_Mor T T')
   : T ⟹ T' := pr1 s.
 
@@ -166,16 +162,20 @@ Definition Monad_identity {C : precategory} (T : Monad C)
 Lemma Monad_composition_laws {C : precategory} {T T' T'' : Monad C}
   (α : Monad_Mor T T') (α' : Monad_Mor T' T'') : Monad_Mor_laws (nat_trans_comp _ _ _ α α').
 Proof.
-  split; intros; simpl.
+  split; intros.
+  Opaque μ.
+  Opaque functor_from_Monad.
+  simpl.
   - rewrite assoc.
     set (H:=Monad_Mor_μ α a); simpl in H.
     rewrite H; clear H; rewrite <- !assoc.
     set (H:=Monad_Mor_μ α' a); simpl in H.
     rewrite H; clear H.
-    rewrite (functor_comp T).
+    rewrite functor_comp.
     apply maponpaths.
     now rewrite !assoc, nat_trans_ax.
-  - rewrite assoc.
+  - simpl.
+    rewrite assoc.
     eapply pathscomp0; [apply cancel_postcomposition, Monad_Mor_η|].
     apply Monad_Mor_η.
 Qed.
@@ -244,7 +244,7 @@ Definition forgetfunctor_Monad (C : category) :
 Proof.
   use mk_functor.
   - use mk_functor_data.
-    + exact (fun M => pr1 M:functor C C).
+    + exact (fun M => functor_from_Monad C M:functor C C).
     + exact (fun M N f => pr1 f).
   - abstract (split; red; intros;  reflexivity).
 Defined.
